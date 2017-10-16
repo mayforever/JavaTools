@@ -68,11 +68,11 @@ network - easy way of TCP and UDP.
 	public class App {
 	
 
-		public static com.jbmusic.reports.udp.UdpServer udpServer = null;
+		public static UdpServer udpServer = null;
 		
 		
 		public static void main(String[] args){
-			udpServer = new com.jbmusic.reports.udp.UdpServer();
+			udpServer = new UdpServer();
 			udpServer.startUdpServer();
 			
 		}
