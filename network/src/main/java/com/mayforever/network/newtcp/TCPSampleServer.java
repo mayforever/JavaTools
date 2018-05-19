@@ -6,7 +6,7 @@ public class TCPSampleServer implements com.mayforever.network.newtcp.ServerList
 	
 	public TCPServer tcpServer = null;
 	public TCPSampleServer(){
-		tcpServer = new TCPServer(13500, "localhost");
+		tcpServer = new TCPServer(13500, "127.0.0.1");
 		tcpServer.addListener(this);
 		
 		while(true){
@@ -20,12 +20,12 @@ public class TCPSampleServer implements com.mayforever.network.newtcp.ServerList
 		}
 	}
 	public static void main(String[] arg){
-		new TCPSampleServer();
+		TCPSampleServer tcpSampleServer = new TCPSampleServer();
 	}
 	public void acceptSocket(AsynchronousSocketChannel socket) {
 		// TODO Auto-generated method stub
 		// TCPClient tcpClient= new TCPClient(socket);
-		new TCPSampleClient(socket);
+		TCPSampleClient tcpSampleClient = new TCPSampleClient(socket);
 	}
 	public void socketError(Exception e) {
 		// TODO Auto-generated method stub
