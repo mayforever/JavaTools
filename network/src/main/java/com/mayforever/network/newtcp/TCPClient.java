@@ -6,108 +6,199 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
-public class TCPClient implements CompletionHandler<Integer, AsynchronousSocketChannel>{
+public class TCPClient {
 	private AsynchronousSocketChannel socket_= null;
 	private ClientListener listener_ = null;
 	private ByteBuffer recbuf ;
 	private ByteBuffer sendbuf ;
-	private boolean isRead ;
-	private int alloc_= 2048;
+//	private boolean isRead ;
+//	private CHForTcpClient chForTcpClient = null;
+//	private SendHandler sendHandler = null;
+//	private RecieveHandler recieveHandler = null;
+	
+	private int allocation = 2048;
 	
 	public TCPClient(AsynchronousSocketChannel socket){
-		this.socket_=socket;
-		this.sendbuf = ByteBuffer.allocate(alloc_);
-		this.recbuf = ByteBuffer.allocate(alloc_);
-		this.isRead = true;
-		// lock = new Object();
+		// constructing
+		this.socket_ = socket;
+		this.sendbuf = ByteBuffer.allocate(allocation);
+		this.recbuf = ByteBuffer.allocate(allocation);
+//		this.isRead = true;
+
+//		this.chForTcpClient = new CHForTcpClient();
+//		sendHandler = new SendHandler();
+//		recieveHandler =new  RecieveHandler();
 	}
 	
-	public TCPClient(String Ip,int port){
-		// this.socket_=socket;
-		SocketAddress serverAddr = new InetSocketAddress(Ip, port);
+	public TCPClient(String host,int port){
+		// constructing by given host and port server
+		SocketAddress serverAddr = new InetSocketAddress(host, port);
 		
 		try {
+			// opening client by socket
 			this.socket_ = AsynchronousSocketChannel.open();
+			
+			// connect it to server socket 
 			this.socket_.connect(serverAddr).get();
-			this.sendbuf = ByteBuffer.allocate(alloc_);
-			this.recbuf = ByteBuffer.allocate(alloc_);
-			this.isRead = true;
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			// e.printStackTrace();
-			this.listener_.socketError(e);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			this.listener_.socketError(e);
-		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
+			
+			// allocate buffer to ByteBuffer
+			this.sendbuf = ByteBuffer.allocate(allocation);
+			this.recbuf = ByteBuffer.allocate(allocation);
+			
+			// setting the value so the client was ready to accept
+//			this.isRead = true;
+			
+//			sendHandler = new SendHandler();
+//			recieveHandler =new  RecieveHandler();
+		} catch (Exception e) {
 			this.listener_.socketError(e);
 		}
+		
 	}
 	
 	public void addListener(ClientListener listener){
+		// start listening to that socket
+		// self made listener so it easily to handle
 		this.listener_=listener;
-		try {
-			socket_.read(recbuf, socket_, this);
-		}catch(Exception e) {
-			this.listener_.socketError(e);
-		}
 		
-		// threadClient.start();
+		// the client was ready to read
+		socket_.read(recbuf, socket_, new RecieveHandler());
 	}
+	
 	public void sendPacket(byte[] data) throws IOException{
-		// socket_.shutdownInput();
+		
+		// insert data to sendBuf
 		sendbuf = ByteBuffer.wrap(data);
-		this.isRead = false;
+		
+		// turn of read mode so the socket can send
+//		this.isRead = false;
+		
 		try{
-			this.socket_.write(sendbuf, this.socket_, this);
+		
+			// sending data in a socket
+//			this.socket_.write(sendbuf,30, TimeUnit.MILLISECONDS, this.socket_, chForTcpClient);
+			this.socket_.write(sendbuf, this.socket_, new SendHandler());
 		}catch(Exception e){
 			this.listener_.socketError(e);
 		}
-		// this.threadClient.start();
 	}
 	
-	public void completed(Integer result, AsynchronousSocketChannel attachment) {
-		// TODO Auto-generated method stub
+
+	
+	public void disconnect(){
 		try {
-			if(isRead){
-				if(result!=0){
-					recbuf.flip();
-					int limits = recbuf.limit();
-					byte[] recievedData = new byte[limits];
-					// System.arraycopy(buf.array(), 0, recievedData, 0, result);
-					recbuf.get(recievedData, 0, limits);
-					this.listener_.packetData(recievedData);
-					// System.out.println(limits);
-					// this.isRead = false;
-					
-					this.recbuf = ByteBuffer.allocate(alloc_);
-					socket_.read(recbuf, socket_, this);
-					
-				}
-			}else{
-				// buf.clear();
-				// attachment.shutdownInput();
-				this.sendbuf = ByteBuffer.allocate(alloc_);
-				this.isRead = true;
-				
-				// socket_.read(buf, socket_, this);
-			}
-		}catch(Exception e) {
+			// disconnect client
+			this.socket_.close();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
 			this.listener_.socketError(e);
 		}
+	}
+	
+	public void setAllocation(int alloc){
+		// set the allocation
+		this.allocation=alloc;
+	}
+
+	private class RecieveHandler implements CompletionHandler<Integer, AsynchronousSocketChannel>{
+
+		public void completed(Integer result, AsynchronousSocketChannel attachment) {
+			// TODO Auto-generated method stub
+			if (result == -1){
+				// for server disconnect
+				try {
+					throw new DisconnectClientError() ;
+				} catch (DisconnectClientError e) {
+					// TODO Auto-generated catch block
+					listener_.socketError(e);
+				}
+				return;
+			}
+			if(result!=0){
+				// i dont know the meaning why i need to flip
+				// but i think it need
+				recbuf.flip();
+				
+				// getting size of data
+				int limits = recbuf.limit();
+//				System.out.println(limits);
+				// declare and initiate data recieve
+				byte[] recievedData = new byte[limits];
+				
+				// filling recieved data by limits
+				recbuf.get(recievedData, 0, limits);		
+				
+				// pass it to our listener
+				listener_.packetData(recievedData);
+				
+				// re allocating recbuf
+				recbuf = ByteBuffer.allocate(allocation);
+				
+				// ready to read again
+				socket_.read(recbuf, socket_, new RecieveHandler());
+			}
 			
+			
+				
+		}
+
+		public void failed(Throwable exc, AsynchronousSocketChannel attachment) {
+			listener_.socketError((Exception)exc);
+		}
 		
 		
 	}
 
-	public void failed(Throwable exc, AsynchronousSocketChannel attachment) {
-		listener_.socketError((Exception)exc);
-	}
 	
-	public void setAllocationPerBytes(int alloc){
-		this.alloc_ = alloc;
+	private class SendHandler implements CompletionHandler<Integer, AsynchronousSocketChannel>{
+
+		public void completed(Integer result, AsynchronousSocketChannel attachment) {
+			// TODO Auto-generated method stub
+			if (result == -1){
+				// for server disconnect
+				try {
+					throw new DisconnectClientError() ;
+				} catch (DisconnectClientError e) {
+					// TODO Auto-generated catch block
+					listener_.socketError(e);
+				}
+				return;
+			}
+			
+			if(result!=0){
+					// i dont know the meaning why i need to flip
+					// but i think it need
+					sendbuf = ByteBuffer.allocate(allocation);
+					
+					// setting ready to read
+//					isRead = true;
+			}
+//			System.out.println("data send:"+result);
+			
+				
+		}
+
+		public void failed(Throwable exc, AsynchronousSocketChannel attachment) {
+			listener_.socketError((Exception)exc);
+		}
+		
+		
+	}
+	private class DisconnectClientError extends Exception{
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1L;
+
+		private DisconnectClientError() {
+			try {
+				socket_.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				listener_.socketError(e);
+			}
+		}
 	}
 }

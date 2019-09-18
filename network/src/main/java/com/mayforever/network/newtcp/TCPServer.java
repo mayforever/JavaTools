@@ -6,53 +6,80 @@ import java.nio.channels.AsynchronousServerSocketChannel;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
 
-public class TCPServer implements CompletionHandler<AsynchronousSocketChannel, AsynchronousServerSocketChannel>{
+public class TCPServer {
 	private ServerListener listener_=null;
 	private AsynchronousServerSocketChannel asynchronousServerSocketChannel=null;
 	private int port_=0;
 	private String host_="";
+	private CHForTCPServer chForTcpServer = null;
 	
 	public TCPServer(int port, String host){
+		// kids stop constructing
 		this.port_=port;
-		this.host_=host;
-		
-	}
-	
-	public void addListener(ServerListener listener){
-		this.listener_=listener;
-		try {
-			asynchronousServerSocketChannel = AsynchronousServerSocketChannel
-			        .open();
-			InetSocketAddress sAddr = new InetSocketAddress(this.host_, this.port_);
-			asynchronousServerSocketChannel.bind(sAddr);
-			// System.out.format("Server is listening at %s%n", sAddr);
-		} catch (IOException e1) {
-			this.listener_.socketError(e1);
+		if(host != null){
+			this.host_=host;
+		}else{
+			this.host_ = "127.0.0.1";
 		}
-	
-		asynchronousServerSocketChannel.accept(this.asynchronousServerSocketChannel, this);
+		chForTcpServer = new CHForTCPServer();
 	}
-	
+
+	public void addListener(ServerListener listener){
+		
+		if (listener != null){
+			// server listener initiating
+			// this listener is an self create interface
+			this.listener_=listener;
+			
+			try {
+			
+				// initializing asynchronous server
+				asynchronousServerSocketChannel = AsynchronousServerSocketChannel
+				        .open();
+				
+				// declare and initialize inetSocketAddress of the server
+				InetSocketAddress sAddr = new InetSocketAddress(this.host_, this.port_);
+				
+				// bind the inetSocketAddress
+				asynchronousServerSocketChannel.bind(sAddr);
+
+				// ready the server to accept
+				asynchronousServerSocketChannel.accept(this.asynchronousServerSocketChannel, chForTcpServer);
+		
+			} catch (IOException e1) {
+				this.listener_.socketError(e1);
+			}
+		}else{
+			
+			// throws null pointer exception for listener
+			this.listener_.socketError(new NullPointerException());
+		}	
+	}
 	public void stopListenning(){
 		try {
+			
+			// closing socket
 			this.asynchronousServerSocketChannel.close();
+		
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			// ea.printStackTrace();
 			this.listener_.socketError(e);
 		}
 	}
+	
+	// Hide the completed/failed
+	private class CHForTCPServer implements CompletionHandler<AsynchronousSocketChannel, AsynchronousServerSocketChannel>{
+		public  void completed(AsynchronousSocketChannel client, AsynchronousServerSocketChannel serverSocket) {
+			
+			// initializing client socket
+			listener_.acceptSocket(client);
+			
+			// ready the server to accept again
+			serverSocket.accept(serverSocket, this);
+			
+		}
 
-	public void completed(AsynchronousSocketChannel result, AsynchronousServerSocketChannel attachment) {
-		// TODO Auto-generated method stub
-		listener_.acceptSocket(result);
-		attachment.accept(attachment, this);
-		// System.out.println("Socket Connected");
-	}
-
-	public void failed(Throwable exc, AsynchronousServerSocketChannel attachment) {
-		// TODO Auto-generated method stub
-		// System.out.println("Socket Failed");
-		this.listener_.socketError((Exception)exc);
+		public void failed(Throwable exc, AsynchronousServerSocketChannel attachment) {
+			listener_.socketError((Exception)exc);
+		}
 	}
 }

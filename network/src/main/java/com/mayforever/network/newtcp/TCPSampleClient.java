@@ -27,7 +27,7 @@ public class TCPSampleClient implements com.mayforever.network.newtcp.ClientList
 
 	public void socketError(Exception e) {
 		// TODO Auto-generated method stub
-		
+		e.printStackTrace();
 	}
 
 }
