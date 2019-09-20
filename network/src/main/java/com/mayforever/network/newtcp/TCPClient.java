@@ -79,7 +79,10 @@ public class TCPClient {
 		
 			// sending data in a socket
 //			this.socket_.write(sendbuf,30, TimeUnit.MILLISECONDS, this.socket_, chForTcpClient);
-			this.socket_.write(sendbuf, this.socket_, new SendHandler());
+			synchronized (this) {
+				this.socket_.write(sendbuf, this.socket_, new SendHandler());
+			}
+			
 		}catch(Exception e){
 			this.listener_.socketError(e);
 		}
