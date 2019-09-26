@@ -79,9 +79,7 @@ public class TCPClient {
 		
 			// sending data in a socket
 //			this.socket_.write(sendbuf,30, TimeUnit.MILLISECONDS, this.socket_, chForTcpClient);
-			synchronized (this) {
-				this.socket_.write(sendbuf, this.socket_, new SendHandler());
-			}
+			this.socket_.write(sendbuf, this.socket_, new SendHandler());
 			
 		}catch(Exception e){
 			this.listener_.socketError(e);
@@ -159,27 +157,30 @@ public class TCPClient {
 
 		public void completed(Integer result, AsynchronousSocketChannel attachment) {
 			// TODO Auto-generated method stub
-			if (result == -1){
-				// for server disconnect
-				try {
-					throw new DisconnectClientError() ;
-				} catch (DisconnectClientError e) {
-					// TODO Auto-generated catch block
-					listener_.socketError(e);
+			synchronized (attachment) {
+				
+			
+				if (result == -1){
+					// for server disconnect
+					try {
+						throw new DisconnectClientError() ;
+					} catch (DisconnectClientError e) {
+						// TODO Auto-generated catch block
+						listener_.socketError(e);
+					}
+					return;
 				}
-				return;
-			}
-			
-			if(result!=0){
-					// i dont know the meaning why i need to flip
-					// but i think it need
-					sendbuf = ByteBuffer.allocate(allocation);
-					
-					// setting ready to read
-//					isRead = true;
-			}
+				
+				if(result!=0){
+						// i dont know the meaning why i need to flip
+						// but i think it need
+						sendbuf = ByteBuffer.allocate(allocation);
+						
+						// setting ready to read
+	//					isRead = true;
+				}
 //			System.out.println("data send:"+result);
-			
+			}
 				
 		}
 
